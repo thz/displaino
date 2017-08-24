@@ -51,7 +51,7 @@ OLEDDisplayUi ui     ( &display );
 void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_10);
-  display->drawString(128, 0, String(millis()));
+  display->drawString(128, 0, String(millis() / 1000));
 }
 
 void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
@@ -161,6 +161,14 @@ void setup() {
 
 void loop() {
   int remainingTimeBudget = ui.update();
+
+  // for testing purposes switch between max and min
+  // contrast; change every 10 seconds
+  if ((millis() / 10000) % 2) {
+    display.setContrast(0);
+  } else {
+    display.setContrast(255);
+  }
 
   if (remainingTimeBudget > 0) {
     // You can do some work here
