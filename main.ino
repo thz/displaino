@@ -35,6 +35,7 @@
    physical pin-outs match: d3/d4 for SDA/SLC
 */
 
+#include <ESP8266WiFi.h>
 #include <Wire.h>  // Only needed for Arduino 1.6.5 and earlier
 #include "SH1106.h"
 
@@ -117,11 +118,32 @@ int frameCount = 5;
 OverlayCallback overlays[] = { msOverlay };
 int overlaysCount = 1;
 
+const char* ssid = "your-ssid";
+const char* password = "secret";
+WiFiClient espClient;
+PubSubClient client(espClient);
+void wifisetup() {
+  delay(10);
+  Serial.printf("\nConnecting to WiFi SSID: %s\n", ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.printf("WiFi connected.\nIP address: ");
+  Serial.println(WiFi.localIP());
+}
+
 void setup() {
   Serial.begin(115200);
-  Serial.println();
-  Serial.println();
+  Serial.printf("\n\ndevice setup starting...\n");
 
+  wifisetup();
+  randomSeed(micros());
+  Serial.printf("preparing OLED display...\n");
   // The ESP is capable of rendering 60fps in 80Mhz mode
   // but that won't give you much time for anything else
   // run it in 160Mhz mode or just set it to 30 fps
