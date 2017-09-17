@@ -1,0 +1,8 @@
+# fire up a broker
+docker run -d -p 1883:1883 eclipse-mosquitto
+
+# send "Hello World" message via your broker:
+mosquitto_pub -h 192.0.2.1 -t inTopic -m "Hello World"
+
+# subscribe to "outTopic" via your broker:
+mosquitto_sub -h 192.0.2.1 -t outTopic
