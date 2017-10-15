@@ -68,6 +68,8 @@ public:
   void cfgChange_Callback();
   void mqttBroker_Callback(char* topic, byte* payload, unsigned int length);
 
+  void mqttSubscribe(const char *topic);
+
   bool pub(int e1, char* Payload);
   bool pub(int e1, int e2, char* Payload);
   bool pub(int e1, int e2, int e3, char* Payload);

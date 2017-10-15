@@ -23,6 +23,10 @@ ESP8266_Basic::ESP8266_Basic() : webServer(),
   mqtt_client.setCallback(std::bind(&ESP8266_Basic::mqttBroker_Callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
+void ESP8266_Basic::mqttSubscribe(const char *topic) {
+	mqtt_client.subscribe(topic);
+}
+
 //===============================================================================
 //  AktSen Control 
 //===============================================================================
