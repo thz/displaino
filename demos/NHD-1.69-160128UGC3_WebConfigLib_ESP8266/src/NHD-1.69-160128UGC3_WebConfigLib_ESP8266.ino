@@ -1711,9 +1711,12 @@ void loop()
     } 
     else
     {
+/* spare these cycles for wifi functionality
+ * TODO: some time/cycle management with priorities
        Serial.println("Config mode activ! (loop())");
        OLED_FillArea_160128RGB(0, 160, 0, 128, BLACK);
        OLED_StringSmallFont_160128RGB(80 - countPixel("Config mode")/2, 102, "Config mode" , WHITE, BLACK);   // 0
+*/
     } // if config_runnig
     
   } //while(1) 
