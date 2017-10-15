@@ -159,6 +159,9 @@ const char weatherIconFileName[30][35] = {     // Weather icons 30 Dateien, max 
     {"sunny-icon.bmp"},
 };
 
+// simple variable for mqtt testing
+char lastMqttMessage[128];
+
 /*********************************/
 /******** WEATHER TABLE  *********/
 /************** END **************/
@@ -1538,6 +1541,15 @@ void setup()
   }
 }
 
+int mqttCallback(char* topic, byte* payload, unsigned int length) {
+	if (!strcmp("displayTopic", topic)) {
+		memset(lastMqttMessage, 0, 128);
+		memcpy(lastMqttMessage, payload, length<128?length:127);
+		Serial.print("received via displayTopic: ");
+		Serial.println(lastMqttMessage);
+	}
+}
+
 // the loop function runs over and over again forever
 void loop() 
 {
@@ -1560,6 +1572,10 @@ void loop()
     OLED_Init_160128RGB();                           // initialize display
     OLED_FillScreen_160128RGB(BLACK);                // fill screen with black
     OLED_FadeOut_160128RGB(0);
+
+	espClient.mqttSubscribe("displayTopic");
+	espClient.mqttSetCallback(mqttCallback);
+
     while(1)                                          // wait here forever
     {
          
@@ -1644,7 +1660,10 @@ void loop()
          strcpy(espClient.MyOLEDDisplay[4].Screen, charNewTemp); // copy for display on Website
 
          OLED_FillArea_160128RGB(0, 160, 100, 128, BLACK);
-         OLED_StringSmallFont_160128RGB(80 - countPixel("Temperatur")/2 , 124, "Temperatur"  , BLUE, BLACK);   // 0
+		 const char *s=lastMqttMessage;
+		 if ( (!s) || (!s[0]) ) s = "Temperatur";
+
+         OLED_StringSmallFont_160128RGB(80 - countPixel(s)/2 , 124, s, BLUE, BLACK);   // 0
          OLED_FillArea_160128RGB(0, 160, 43, 95, BLACK);
          OLED_StringBigFont_160128RGB(80 - countBigPixel(charNewTemp)/2, 90, charNewTemp , YELLOW, BLACK);   // 0
 
