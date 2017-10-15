@@ -23,6 +23,10 @@ ESP8266_Basic::ESP8266_Basic() : webServer(),
   mqtt_client.setCallback(std::bind(&ESP8266_Basic::mqttBroker_Callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
+void ESP8266_Basic::mqttSetCallback( int (*cb)(char*, byte*, unsigned int) ) {
+	mqttUserSubscriptionCallback = cb;
+}
+
 void ESP8266_Basic::mqttSubscribe(const char *topic) {
 	mqtt_client.subscribe(topic);
 }
@@ -126,7 +130,14 @@ void ESP8266_Basic::mqttBroker_Callback(char* topic, byte* payload, unsigned int
   Serial.print(topic);
   Serial.print(" | ");
   Serial.println(value);
-  
+
+	// do not interfere too much with current code,
+	// callback user function and then handle the
+	// code below
+	if (mqttUserSubscriptionCallback) {
+		mqttUserSubscriptionCallback(topic, payload, length);
+	}
+
   TdissectResult dissectResult;    
   dissectResult = dissectPayload(topic, value);
 

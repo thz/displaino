@@ -68,6 +68,7 @@ public:
   void cfgChange_Callback();
   void mqttBroker_Callback(char* topic, byte* payload, unsigned int length);
 
+  void mqttSetCallback( int (*cb)(char*, byte*, unsigned int) );
   void mqttSubscribe(const char *topic);
 
   bool pub(int e1, char* Payload);
@@ -78,7 +79,11 @@ public:
 
   //AktSen
   void handle_Measurement();
-  
+
+protected:
+  // user call back for mqtt subscriptions
+  int (*mqttUserSubscriptionCallback)(char*, byte*, unsigned int) = NULL;
+
 private:
   WiFiClient wifi_client;
   PubSubClient mqtt_client;
