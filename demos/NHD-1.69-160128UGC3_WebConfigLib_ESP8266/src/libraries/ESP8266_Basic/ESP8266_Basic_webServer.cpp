@@ -331,7 +331,7 @@ void ESP8266_Basic_webServer::rootPageHandler()
   " <tr>"
   " <tr>"
   "  <td>Password</td>"
-  "  <td><input type='text' id='wifiPSK' name='wifiPSK' value='" + String(cfg->wifiPSK) + "' size='30' maxlength='40' placeholder='Password'></td>"
+  "  <td><input type='password' id='wifiPSK' name='wifiPSK' size='30' maxlength='40' placeholder='Password'></td>"
   " </tr>"
   " <tr>"
 
