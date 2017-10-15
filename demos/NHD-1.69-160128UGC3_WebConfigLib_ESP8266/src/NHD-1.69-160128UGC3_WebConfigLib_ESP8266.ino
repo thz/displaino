@@ -24,7 +24,9 @@
 
 
 #include <ESP8266WiFi.h>
+#if DHT_ENABLED
 #include <DHT.h>
+#endif
 #include <ESP8266WebServer.h>
 #include <Time.h>
 #include <TimeLib.h>
@@ -36,10 +38,11 @@
  
 //---------------------------------------------------------
 
+#if DHT_ENABLED
 #define DHTTYPE DHT22
 #define DHTPIN D3  //GPIO12  - Daten
 #define DHTVDD D4  //GPIO13  - VDD
-
+#endif
 
 #define   SDI_PIN    13    // SDI (serial mode) signal connected to D4
 #define   SCL_PIN    14    // SCL (serial mdoe) signal connected to D3
@@ -90,6 +93,7 @@ unsigned long previousMillisNTP = 0;          // will store last NTP was read
 const unsigned long intervalNTP = 86400000;            // interval at which to sync Clock with NTP (86400000ms = 24h)
 bool setNTP_OK = false;                       // true if set Time done
 
+#if DHT_ENABLED
 // Initialize DHT sensor 
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
 // you need to increase the threshold for cycle counts considered a 1 or 0.
@@ -99,6 +103,7 @@ bool setNTP_OK = false;                       // true if set Time done
 // Arduino Due that runs at 84mhz a value of 30 works.
 // This is for the ESP8266 processor on ESP-01 
 DHT dht(DHTPIN, DHTTYPE, 30);             // 30 works fine for ESP8266-12E
+#endif
 
 float humidity, temp_f;                   // Values read from sensor
 float temp = 0.0;
@@ -397,6 +402,7 @@ String printDigits(int digits)
 /*===============================*/
 
 void getTemperature() {
+#if DHT_ENABLED
   // Wait at least 2 seconds seconds between measurements.
   // if the difference between the current time and last time you read
   // the sensor is bigger than the interval you set, read the sensor
@@ -417,6 +423,7 @@ void getTemperature() {
       return;
     }
   }
+#endif
 }
 
 /*===============================*/
@@ -1493,10 +1500,12 @@ void setup()
   // prepare GPIO LED
   pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
 
+#if DHT_ENABLED
   // prepare DHT VDD                // Wärem durch Strom  reduzieren
   dht.begin();
   pinMode(DHTVDD, OUTPUT);
   digitalWrite(DHTVDD, HIGH);        // DHT /off
+#endif
 
   // prepare GPIO for Display
   pinMode(RS_PIN, OUTPUT);                     // configure RS_PIN as output
@@ -1592,12 +1601,13 @@ void loop()
           if (now - previousMillisMQTT > 10000) 
           {
             previousMillisMQTT = now;
-
+#if DHT_ENABLED
             digitalWrite(DHTVDD, HIGH);                     // DHT on for read
             milli_delay(500);
             newTemp = dht.readTemperature(false);           // Read temperature if trus as Fahrenheit, if false as Celsius
             newHum = dht.readHumidity();                    // Read humidity (percent)
             digitalWrite(DHTVDD, LOW);                      // DHT off for cool down
+#endif
 
             if (checkBound(newTemp, temp, diff)) {
               temp = newTemp;
