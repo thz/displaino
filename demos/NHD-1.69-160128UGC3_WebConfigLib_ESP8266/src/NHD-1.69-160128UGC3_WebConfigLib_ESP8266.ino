@@ -116,6 +116,8 @@ const unsigned long interval = 2000;              // interval at which to read s
 
 unsigned long previousMillisMQTT = 0;        // will store last MQTT was send
 
+static char wb[128];
+static char wblog[128];
 
 ESP8266WebServer FSBrowserServer(81);
 File fsUploadFile;
@@ -625,13 +627,11 @@ void OLED_SetPosition_160128RGB(unsigned char x_pos, unsigned char y_pos)    // 
 
 void OLED_FillArea_160128RGB(unsigned char x_start, unsigned char x_end, unsigned char y_start, unsigned char y_end, unsigned long color)    // fill area with a given color
 {
-    unsigned int i, j;
-    for(i=0;i<(y_end-y_start);i++)
-    {
-        OLED_SetPosition_160128RGB(x_start, y_start+i);
+    unsigned int y, x;
+    for (y=y_start;y<=y_end;++y) {
+        OLED_SetPosition_160128RGB(x_start, y);
         OLED_WriteMemoryStart_160128RGB();
-        for(j = 0; j < ((x_end-x_start)*3); j += 3)
-        {
+        for (x = x_start; x <= x_end; ++x) {
            OLED_Pixel_160128RGB(color);
         }
     }
@@ -641,21 +641,11 @@ void OLED_FillArea_160128RGB(unsigned char x_start, unsigned char x_end, unsigne
 void OLED_FillScreen_160128RGB(unsigned long color)    // fill screen with a given color
 {
     unsigned int i;
-    unsigned int x_start = 0;
-    unsigned int x_end = 159;
-    unsigned int y_start = 0;
-    unsigned int y_end = 127;
-    OLED_SetColumnAddress_160128RGB(0, 159);
-    OLED_SetRowAddress_160128RGB(0, 127);
-    milli_delay(2);
-    OLED_SetPosition_160128RGB(x_start, y_start);
+    OLED_SetPosition_160128RGB(0, 0);
     OLED_WriteMemoryStart_160128RGB();
-    for(i=0;i<((x_end - x_start + 1) * (y_end - y_start + 1 ));i++)
-    {
+    for (i=0;i<128*160;++i) {
         OLED_Pixel_160128RGB(color);
     }
-//      OLED_FillArea_160128RGB(0, 159, 0, 127, BLACK);
-
 }
 
 
@@ -886,13 +876,21 @@ void OLED_bigText_160128RGB(unsigned char x_pos, unsigned char y_pos, unsigned i
     }
 }
 
-void OLED_StringSmallFont_160128RGB(unsigned char x_pos, unsigned char y_pos, const char array_of_string[], unsigned long textColor, unsigned long backgroundColor)  // function to show Number in Verdana
-{
+/*
+ * Returns 1 + the last x position which was painted onto.
+ */
+unsigned int OLED_StringSmallFont_160128RGB(
+		unsigned char x_pos, unsigned char y_pos,
+		const char array_of_string[],
+		unsigned long textColor,
+		unsigned long backgroundColor) {
+
     unsigned int xCharPos = 0;    // x-Position Zeichen auf der Zeile
     unsigned int xCharSpace = 2;  // Abstand zwischen den Zeichen
     unsigned int smallFontArrayPos = 0; 
 
-    for (int i=0;i < strlen(array_of_string); i++)
+	int slen = strlen(array_of_string);
+    for (int i=0;i < slen; i++)
     {                      // Buchstabenabstand, Zeile, wenn Dezimalpunkt - dann andere Stelle in Font-Array abfragen, sonst Zahlenwert-Position  
        switch (array_of_string[i]) 
        {
@@ -915,6 +913,7 @@ void OLED_StringSmallFont_160128RGB(unsigned char x_pos, unsigned char y_pos, co
 //  Serial.print(xCharPos); Serial.print("->");Serial.println(array_of_string[i]);
      
      OLED_smallText_160128RGB(x_pos + xCharPos, y_pos, smallFontArrayPos,  textColor, backgroundColor);
+
      /***************************************************************************************************************************************************
      // Neue Position ergibt sich aus der Addition der alten Position + Anzahl der Bytes pro Zeichen (Array [0])
      // Jedes Byte wird mit 8 Bit bewertet ( Array[0]*8 ), außer das letzte (ganz rechte) Byte. Davon werden nur von links beginnend
@@ -924,6 +923,7 @@ void OLED_StringSmallFont_160128RGB(unsigned char x_pos, unsigned char y_pos, co
      ****************************************************************************************************************************************************/
      xCharPos = xCharPos + (((int)smallFontArrayInfo[smallFontArrayPos][0] -1) * 8)  + (8 - log2(findLastRightBit(smallFontArrayPos))) + xCharSpace;
     }      
+	return x_pos+xCharPos;
 }
 
 
@@ -1547,7 +1547,89 @@ int mqttCallback(char* topic, byte* payload, unsigned int length) {
 		memcpy(lastMqttMessage, payload, length<128?length:127);
 		Serial.print("received via displayTopic: ");
 		Serial.println(lastMqttMessage);
+		dirtyDisplay();
 	}
+}
+
+static int frameCount = 0;
+static char dirtyFlag = 0;
+static int iCounter = 0;
+static char lastHeartbeat = 0;
+void dirtyDisplay() {
+	dirtyFlag = 1;
+}
+
+unsigned long last_clear = 0;
+
+void masterRender(char heartbeat) {
+	heartbeat = heartbeat%8;
+
+	unsigned long now = millis();
+	if (now - last_clear > 30000) {
+		OLED_FillScreen_160128RGB(GREEN);
+		OLED_FillArea_160128RGB(1, 158, 1, 126, BLACK);
+		last_clear = now;
+	}
+
+	if (heartbeat != lastHeartbeat) {
+		lastHeartbeat = heartbeat;
+		// 0 1 2 3 3 2 1 0
+		int y,x;
+		unsigned long col0, col1, col2;
+		col0 = col1 = col2 = BLUE;
+		switch (heartbeat) {
+			case 3:
+			case 4:
+				col2 = WHITE;
+			case 2:
+			case 5:
+				col1 = WHITE;
+			case 1:
+			case 6:
+				col0 = WHITE;
+		}
+		sprintf(wb, "dirty: %d, heartbeat: %d %ld %ld %ld", dirtyFlag, heartbeat, col0, col1, col2);
+		////Serial.println(String(wb));
+		for (y=0;y<3;y++) {
+			OLED_SetPosition_160128RGB(30, 30+y);
+			OLED_WriteMemoryStart_160128RGB();
+			switch (y) {
+				case 0:
+				case 2:
+					OLED_Pixel_160128RGB(col2);
+					OLED_Pixel_160128RGB(col1);
+					OLED_Pixel_160128RGB(col2);
+					break;
+				case 1:
+					OLED_Pixel_160128RGB(col1);
+					OLED_Pixel_160128RGB(col0);
+					OLED_Pixel_160128RGB(col1);
+			}
+		}
+	}
+
+	//if (!dirtyFlag) return;
+	sprintf(wb, "test123%d%d", frameCount++, heartbeat+1);
+	Serial.println(String(wb));
+
+	int x_textarea = 5;
+	int x_text = 80 - countPixel(wb)/2;
+	int y_text = 40;
+
+    int textheight = (int)smallFontArrayInfo[0][1];
+	if (x_text > x_textarea) {
+		OLED_FillArea_160128RGB(x_textarea, x_text-1, y_text-textheight+1, y_text, YELLOW);
+	}
+
+	// OLED_FillArea_160128RGB(x_textarea, 159-5, y_text-textheight+1, y_text, YELLOW);
+
+	unsigned int x_next = OLED_StringSmallFont_160128RGB(x_text, y_text, wb, BLUE, BLACK);
+
+	if (x_next < 159-5) {
+		OLED_FillArea_160128RGB(x_next, 159-5, y_text-textheight+1, y_text, RED);
+	}
+
+	//dirtyFlag = 0;
 }
 
 // the loop function runs over and over again forever
@@ -1572,14 +1654,27 @@ void loop()
     OLED_Init_160128RGB();                           // initialize display
     OLED_FillScreen_160128RGB(BLACK);                // fill screen with black
     OLED_FadeOut_160128RGB(0);
+	OLED_FadeIn_160128RGB(0);
+	dirtyDisplay();
 
 	espClient.mqttSubscribe("displayTopic");
 	espClient.mqttSetCallback(mqttCallback);
 
+	unsigned long intervalTest = millis();
+	iCounter=0;
     while(1)                                          // wait here forever
     {
-         
-        espClient.handle_connections(); 
+		now = millis();
+		if (now - intervalTest > 800) {
+			intervalTest = now;
+			iCounter++;
+			dirtyDisplay();
+		}
+		espClient.handle_connections();
+		FSBrowserServer.handleClient();
+		masterRender(iCounter);
+		delay(1);
+		continue;
         if (!espClient.config_running)
         {
             FSBrowserServer.handleClient();
@@ -1594,7 +1689,7 @@ void loop()
                getNTPTime();
            }
        
-           OLED_FillArea_160128RGB(0, 160, 0, 128, BLACK); //clear screen
+           OLED_FillArea_160128RGB(0, 159, 0, 127, BLACK); //clear screen
 
           // hh:mm
           strcpy(charTime, printDigits(hour()).c_str());
@@ -1659,12 +1754,12 @@ void loop()
          // Display Temerature
          strcpy(espClient.MyOLEDDisplay[4].Screen, charNewTemp); // copy for display on Website
 
-         OLED_FillArea_160128RGB(0, 160, 100, 128, BLACK);
+         OLED_FillArea_160128RGB(0, 159, 100, 127, BLACK);
 		 const char *s=lastMqttMessage;
 		 if ( (!s) || (!s[0]) ) s = "Temperatur";
 
          OLED_StringSmallFont_160128RGB(80 - countPixel(s)/2 , 124, s, BLUE, BLACK);   // 0
-         OLED_FillArea_160128RGB(0, 160, 43, 95, BLACK);
+         OLED_FillArea_160128RGB(0, 159, 43, 95, BLACK);
          OLED_StringBigFont_160128RGB(80 - countBigPixel(charNewTemp)/2, 90, charNewTemp , YELLOW, BLACK);   // 0
 
          OLED_FadeIn_160128RGB(fadeInTime);
@@ -1675,9 +1770,9 @@ void loop()
          // Display Humidity
          strcpy(espClient.MyOLEDDisplay[5].Screen, charNewHum); // copy for display on Website
         
-         OLED_FillArea_160128RGB(0, 160, 100, 128, BLACK);
+         OLED_FillArea_160128RGB(0, 159, 100, 127, BLACK);
          OLED_StringSmallFont_160128RGB(80 - countPixel("Luftfeuchte")/2, 124, "Luftfeuchte" , BLUE, BLACK);   // 0
-         OLED_FillArea_160128RGB(0, 160, 43, 95, BLACK);
+         OLED_FillArea_160128RGB(0, 159, 43, 95, BLACK);
          OLED_StringBigFont_160128RGB(80 - countBigPixel(charNewHum)/2, 90, charNewHum, YELLOW, BLACK);   // 0
          OLED_FadeIn_160128RGB(fadeInTime);
          digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
@@ -1690,7 +1785,7 @@ void loop()
            {
              dtostrf(atof(espClient.MyOLEDDisplay[i].Screen), 4, 1, charDisplay);
              // Clear first line
-             OLED_FillArea_160128RGB(0, 160, 100, 128, BLACK);
+             OLED_FillArea_160128RGB(0, 159, 100, 127, BLACK);
              // Display Toptitle
              switch (i) 
              {
@@ -1708,7 +1803,7 @@ void loop()
              strcat(charDisplay, webUnit);           // Einheit (*C, %) anhängen
 
              OLED_StringSmallFont_160128RGB(80 - countPixel(topDisplay)/2, 127, topDisplay , BLUE, BLACK);   // Toptitle             
-             OLED_FillArea_160128RGB(0, 160, 43, 95, BLACK);
+             OLED_FillArea_160128RGB(0, 159, 43, 95, BLACK);
              OLED_StringBigFont_160128RGB(80 - countBigPixel(charDisplay)/2, 90, charDisplay, YELLOW, BLACK);   // Value
              OLED_FadeIn_160128RGB(fadeInTime);
              milli_delay(delayTime);                      
@@ -1719,7 +1814,7 @@ void loop()
        // Show Weather Bitmap
        for ( int day=0; day<1 ; day++) // 5 Days Forecast ; 1 -> Test
        {
-          OLED_FillArea_160128RGB(0, 160, 0, 128, BLACK);
+          OLED_FillArea_160128RGB(0, 159, 0, 127, BLACK);
 //          OLED_StringSmallFont_160128RGB(80 - countPixel(espClient.MyWeatherIcon[day].forecastDate)/2, 127, espClient.MyWeatherIcon[day].forecastDate , BLUE, BLACK);   // Toptitle             
           selectWeatherIcon(day);  // 0=today
 //          OLED_StringSmallFont_160128RGB(80 - countPixel(espClient.MyWeatherIcon[day].condition)/2, 28, espClient.MyWeatherIcon[day].condition , BLUE, BLACK);   // Toptitle             
@@ -1733,7 +1828,7 @@ void loop()
 /* spare these cycles for wifi functionality
  * TODO: some time/cycle management with priorities
        Serial.println("Config mode activ! (loop())");
-       OLED_FillArea_160128RGB(0, 160, 0, 128, BLACK);
+       OLED_FillArea_160128RGB(0, 159, 0, 127, BLACK);
        OLED_StringSmallFont_160128RGB(80 - countPixel("Config mode")/2, 102, "Config mode" , WHITE, BLACK);   // 0
 */
     } // if config_runnig
