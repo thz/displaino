@@ -23,57 +23,15 @@
 
 
 
-#include <ESP8266WiFi.h>
-#if DHT_ENABLED
-#include <DHT.h>
-#endif
-#include <ESP8266WebServer.h>
-#include <Time.h>
-#include <TimeLib.h>
-#include <math.h>
-//#include <PubSubClient.h>
-#include "ESP8266_Basic.h"
-#include <FS.h>
-#include "Font.h"
- 
+#include "NHD.h"
+
+#include "TextWidget.h"
 //---------------------------------------------------------
-
-#if DHT_ENABLED
-#define DHTTYPE DHT22
-#define DHTPIN D3  //GPIO12  - Daten
-#define DHTVDD D4  //GPIO13  - VDD
-#endif
-
-#define   SDI_PIN    13    // SDI (serial mode) signal connected to D4
-#define   SCL_PIN    14    // SCL (serial mdoe) signal connected to D3
-#define    RS_PIN    5    // RS (D/C) signal connected to          D2
-#define   RES_PIN    0    // /RES signal connected to              D1
-#define    CS_PIN   15    // /CS signal connected to               D5
-
-#define    RED  0x0000FF
-#define  GREEN  0x00FF00
-#define   BLUE  0xFF0000
-#define  WHITE  0xFFFFFF
-#define  BLACK  0x000000
-#define YELLOW  0x00FFEE
-
-// Drivinig_Current
-#define R10H 0x56         //Red
-#define G11H 0x4D         //Green
-#define B12H 0x46         //Blue
 
 // #define LDC TRUE          // Helligkeitssteuerung über Fotowiederstand an A0
 #ifdef LDC
-  #define SENSOR //A0       // ADC Pin
   unsigned int sv = 100;    // Sensor Value A0  
 #endif
-
-#define BUFFPIXEL 20
-
-#define DBG_OUTPUT_PORT Serial
-
-#define VERSION "V 0.34" 
-
 
 // Create espClient from Basic_lib
 ESP8266_Basic espClient;
@@ -1561,14 +1519,36 @@ void dirtyDisplay() {
 
 unsigned long last_clear = 0;
 
+TextWidget *textWidget = 0;
+TextWidget *textWidget2 = 0;
+
 void masterRender(char heartbeat) {
+
+	if (!textWidget) {
+		textWidget = new TextWidget();
+		textWidget->setArea(5, 80, 140, 25);
+		textWidget->setText("Hello");
+		textWidget->setForegroundColor(BLUE);
+		textWidget->setBackgroundColor(BLACK);
+	}
+
+	if (!textWidget2) {
+		textWidget2 = new TextWidget();
+		textWidget2->setTextBackingBuffer((char*)malloc(64));
+		textWidget2->setArea(5, 40, 140, 25);
+		textWidget2->setText("Hello");
+		textWidget2->setForegroundColor(RED);
+		textWidget2->setBackgroundColor(GREEN);
+		textWidget2->setHorizontalMode(TextWidget::HorizontalScroll);
+	}
+
 	heartbeat = heartbeat%8;
 
 	unsigned long now = millis();
 	if (now - last_clear > 30000) {
-		OLED_FillScreen_160128RGB(GREEN);
-		OLED_FillArea_160128RGB(1, 158, 1, 126, BLACK);
-		last_clear = now;
+		// OLED_FillScreen_160128RGB(GREEN);
+		// OLED_FillArea_160128RGB(1, 158, 1, 126, BLACK);
+		// last_clear = now;
 	}
 
 	if (heartbeat != lastHeartbeat) {
@@ -1591,7 +1571,7 @@ void masterRender(char heartbeat) {
 		sprintf(wb, "dirty: %d, heartbeat: %d %ld %ld %ld", dirtyFlag, heartbeat, col0, col1, col2);
 		////Serial.println(String(wb));
 		for (y=0;y<3;y++) {
-			OLED_SetPosition_160128RGB(30, 30+y);
+			OLED_SetPosition_160128RGB(140, 110+y);
 			OLED_WriteMemoryStart_160128RGB();
 			switch (y) {
 				case 0:
@@ -1609,26 +1589,32 @@ void masterRender(char heartbeat) {
 	}
 
 	//if (!dirtyFlag) return;
-	sprintf(wb, "test123%d%d", frameCount++, heartbeat+1);
+	sprintf(wb, "TEST %d@%d", frameCount++, heartbeat+1);
 	Serial.println(String(wb));
 
-	int x_textarea = 5;
-	int x_text = 80 - countPixel(wb)/2;
-	int y_text = 40;
+	textWidget->setText(wb);
+	textWidget->render();
+	textWidget2->setText(wb);
+	textWidget2->render();
 
-    int textheight = (int)smallFontArrayInfo[0][1];
-	if (x_text > x_textarea) {
-		OLED_FillArea_160128RGB(x_textarea, x_text-1, y_text-textheight+1, y_text, YELLOW);
-	}
+	/*
+					int x_textarea = 5;
+					int x_text = 80 - countPixel(wb)/2;
+					int y_text = 40;
 
-	// OLED_FillArea_160128RGB(x_textarea, 159-5, y_text-textheight+1, y_text, YELLOW);
+					int textheight = (int)smallFontArrayInfo[0][1];
+					if (x_text > x_textarea) {
+						OLED_FillArea_160128RGB(x_textarea, x_text-1, y_text-textheight+1, y_text, YELLOW);
+					}
 
-	unsigned int x_next = OLED_StringSmallFont_160128RGB(x_text, y_text, wb, BLUE, BLACK);
+					// OLED_FillArea_160128RGB(x_textarea, 159-5, y_text-textheight+1, y_text, YELLOW);
 
-	if (x_next < 159-5) {
-		OLED_FillArea_160128RGB(x_next, 159-5, y_text-textheight+1, y_text, RED);
-	}
+					unsigned int x_next = OLED_StringSmallFont_160128RGB(x_text, y_text, wb, BLUE, BLACK);
 
+					if (x_next < 159-5) {
+						OLED_FillArea_160128RGB(x_next, 159-5, y_text-textheight+1, y_text, RED);
+					}
+					*/
 	//dirtyFlag = 0;
 }
 
@@ -1662,6 +1648,7 @@ void loop()
 
 	unsigned long intervalTest = millis();
 	iCounter=0;
+
     while(1)                                          // wait here forever
     {
 		now = millis();

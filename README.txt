@@ -1,8 +1,11 @@
 
-playground for a arduino based wifi display
+## playground for a arduino based wifi display
 
-	we are using a 128x64 oled via i2c on a wemos d1 mini
-	physical pin-outs match: d3/d4 for SDA/SLC
+### Abstract
+
+	We are using a Wemos D1 mini with an attached display:
+		* 128x64 oled via i2c
+		* 160x128 color oled (NHD).
 
 	this software uses some dependencies:
 	(usually a zip-download from the repo is sufficient
@@ -16,3 +19,17 @@ playground for a arduino based wifi display
 
 	for use with PlatformIO:
     	pio lib install PubSubClient ESP8266_SSD1306
+
+### Building
+
+The code in this project can be built with platform io (pio).
+Instead of downloading and installing dependencies you can use
+docker:
+
+	docker run --name pio --rm -ti -v $HOME:/home/displaino eclipse/platformio
+
+Then ssh or exec into the container and compile:
+
+	docker exec -ti -w /home/displaino pio bash
+		pio run
+
