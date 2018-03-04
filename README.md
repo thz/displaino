@@ -1,13 +1,20 @@
 
-## playground for a arduino based wifi display
+## Displaino - An arduino based wireless display.
 
 ### Abstract
 
-	We are using a Wemos D1 mini with an attached display:
-		* 128x64 oled via i2c
-		* 160x128 color oled (NHD).
+This software runs on Arduino, communicates using MQTT
+protocol and controls an attached display.
 
-	this software uses some dependencies:
+We are using a Wemos D1 mini powered by ESP8266 and talk
+i2c to an attached OLED display.
+Displays:
+
+	* currently: 160x128 color oled (NHD).
+	* previously: 128x64 oled via i2c
+
+This software uses some dependencies:
+
 	(usually a zip-download from the repo is sufficient
 	as added library)
 
